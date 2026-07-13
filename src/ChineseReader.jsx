@@ -1015,9 +1015,9 @@ const S = {
   barLabel: { fontSize: 11.5, color: "#8d8577", fontWeight: 600 },
   rateNum: { fontSize: 11.5, color: "#6b665c", fontWeight: 600, width: 34 },
 
-  btnPrimary: { display: "inline-flex", alignItems: "center", gap: 6, background: ACCENT, color: "#fff", border: "none", padding: "8px 14px", borderRadius: 3, fontSize: 13, fontWeight: 600, cursor: "pointer" },
-  btnStop: { display: "inline-flex", alignItems: "center", gap: 6, background: INK, color: PAPER, border: "none", padding: "8px 14px", borderRadius: 3, fontSize: 13, fontWeight: 600, cursor: "pointer" },
-  btnGhost: { display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", color: INK, border: `1.5px solid ${INK}`, padding: "7px 12px", borderRadius: 3, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+  btnPrimary: { display: "inline-flex", alignItems: "center", gap: 6, background: ACCENT, color: "#fff", border: "none", padding: "8px 14px", borderRadius: 3, fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" },
+  btnStop: { display: "inline-flex", alignItems: "center", gap: 6, background: INK, color: PAPER, border: "none", padding: "8px 14px", borderRadius: 3, fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" },
+  btnGhost: { display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", color: INK, border: `1.5px solid ${INK}`, padding: "7px 12px", borderRadius: 3, fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" },
   disabled: { opacity: 0.3, cursor: "not-allowed" },
   selChip: { fontFamily: SERIF, background: "#f0e6d4", padding: "1px 5px", borderRadius: 3, fontSize: 12 },
 

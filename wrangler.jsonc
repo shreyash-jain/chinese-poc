@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "chinese-lms-poc",
+  "compatibility_date": "2026-07-13",
+
+  // Static SPA — Vite builds to dist/ and Cloudflare Pages serves it directly.
+  // There is no backend: segmentation, the dictionary and TTS all run client-side.
+  "pages_build_output_dir": "dist"
+}

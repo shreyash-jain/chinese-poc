@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Volume2, Square, X, PenLine, Loader2, BookOpen, Quote,
-  Sparkles, ChevronRight, Play,
+  Sparkles, ChevronRight, Play, Shuffle, CornerDownRight,
 } from "lucide-react";
 
 import { DICT, SIMP_TO_TRAD, COMPONENTS } from "./data/dict.js";
@@ -340,9 +340,13 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
   const shown = script === "trad" ? toTrad(word) : word;
   const chars = [...word].filter((c) => /[一-鿿]/.test(c));
 
+  const synCount =
+    (entry.syn?.length || 0) + (entry.ant?.length || 0) + (entry.rel?.length || 0);
+
   const TABS = [
     { id: "def", label: "释义", icon: BookOpen },
-    { id: "ex", label: `例句 ${entry.ex?.length ? `(${entry.ex.length})` : ""}`, icon: Quote },
+    { id: "ex", label: `例句${entry.ex?.length ? ` ${entry.ex.length}` : ""}`, icon: Quote },
+    { id: "syn", label: `近义${synCount ? ` ${synCount}` : ""}`, icon: Shuffle },
     { id: "stroke", label: "笔顺", icon: PenLine },
   ];
 
@@ -470,6 +474,38 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
           </div>
         )}
 
+        {/* ── 近义 · 反义 · 相关 ───────────────────────────────────── */}
+        {tab === "syn" && (
+          <>
+            {!synCount && (
+              <div style={S.empty}>这个词条还没有近义词资料。</div>
+            )}
+
+            <RelatedGroup
+              title="近义词"
+              hint="意思相近，但用法未必相同 —— 注意下面的辨析。"
+              items={entry.syn}
+              tone="syn"
+              speak={speak} gender={gender} rate={rate}
+              onNavigate={onNavigate} script={script}
+            />
+            <RelatedGroup
+              title="反义词"
+              items={entry.ant}
+              tone="ant"
+              speak={speak} gender={gender} rate={rate}
+              onNavigate={onNavigate} script={script}
+            />
+            <RelatedGroup
+              title="相关词"
+              items={entry.rel}
+              tone="rel"
+              speak={speak} gender={gender} rate={rate}
+              onNavigate={onNavigate} script={script}
+            />
+          </>
+        )}
+
         {/* ── 笔顺 ─────────────────────────────────────────────────── */}
         {tab === "stroke" && (
           <div style={S.block}>
@@ -513,6 +549,59 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
         )}
       </div>
     </aside>
+  );
+}
+
+// ── One group of related words (近义 / 反义 / 相关) ──────────────────────────
+// A word that also exists as a headword is clickable and swaps the panel to it;
+// one that doesn't still shows its pinyin and gloss, so the list is never a
+// dead end. The `note` is the 辨析 — the part that says why two near-synonyms
+// are not actually interchangeable.
+function RelatedGroup({ title, hint, items, tone, speak, gender, rate, onNavigate, script }) {
+  if (!items?.length) return null;
+
+  return (
+    <div style={S.block}>
+      <div style={S.blockLabel}>
+        <span style={{ ...S.relDot, background: REL_TONE[tone] }} />
+        {title} · {items.length}
+      </div>
+      {hint && <div style={S.relHint}>{hint}</div>}
+
+      {items.map((it, i) => {
+        const known = !!DICT[it.w];
+        return (
+          <div key={i} style={S.relRow}>
+            <div style={S.relHead}>
+              <button
+                disabled={!known}
+                onClick={() => known && onNavigate(it.w)}
+                style={{ ...S.relWord, ...(known ? S.relWordLink : {}) }}
+                title={known ? "在词典中查看" : "不在示范词库内"}>
+                {script === "trad" ? toTrad(it.w) : it.w}
+                {known && <ChevronRight size={13} style={{ opacity: 0.5 }} />}
+              </button>
+
+              <button style={S.relPlay}
+                onClick={() => speak(it.w, { gender, rate })}
+                title="朗读">
+                <Volume2 size={11} />
+              </button>
+            </div>
+
+            <div style={S.relPy}>{it.py}</div>
+            <div style={S.relEn}>{it.en}</div>
+
+            {it.note && (
+              <div style={S.relNote}>
+                <CornerDownRight size={11} style={{ flexShrink: 0, marginTop: 3, opacity: 0.5 }} />
+                <span>{it.note}</span>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

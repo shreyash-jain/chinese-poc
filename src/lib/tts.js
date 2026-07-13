@@ -18,29 +18,53 @@ import { useState, useEffect, useRef, useCallback } from "react";
 // See speakRemote() at the bottom.
 // ============================================================================
 
+// Known zh voice names by gender. Covers Microsoft/Edge (Xiaoxiao, Yunxi…),
+// the classic macOS voices (Tingting, Meijia, Sinji) AND the newer Apple
+// expressive voices (Reed, Eddy, Flo, Shelley…), which is where the first
+// version went wrong: it recognised none of the Apple names, so it concluded
+// the machine had no male Chinese voice when in fact it has four.
 const FEMALE_HINTS = [
-  "xiaoxiao", "xiaoyi", "xiaohan", "xiaomo", "xiaoxuan", "xiaorui",
-  "tingting", "ting-ting", "婷婷", "sinji", "meijia", "mei-jia",
-  "huihui", "yaoyao", "female", "女",
+  // Microsoft / Edge
+  "xiaoxiao", "xiaoyi", "xiaohan", "xiaomo", "xiaoxuan", "xiaorui", "huihui", "yaoyao",
+  // Apple — classic
+  "tingting", "ting-ting", "婷婷", "meijia", "mei-jia", "美佳", "sinji", "善怡",
+  // Apple — expressive
+  "flo", "shelley", "sandy", "grandma",
+  "female", "女",
 ];
 const MALE_HINTS = [
-  "yunxi", "yunyang", "yunjian", "yunye", "yunfeng", "yunhao",
-  "kangkang", "liangliang", "li-mu", "limu", "yunze",
+  // Microsoft / Edge
+  "yunxi", "yunyang", "yunjian", "yunye", "yunfeng", "yunhao", "yunze",
+  "kangkang", "liangliang", "li-mu", "limu",
+  // Apple — expressive
+  "reed", "eddy", "rocko", "grandpa",
   "male", "男",
 ];
 
-// Prefer neural / cloud voices — the old concatenative ones sound robotic.
+// Voices that are deliberately cartoonish. Usable, but never auto-selected for
+// a language-learning demo — a student should not be taught tones by "Grandpa".
+const NOVELTY = ["grandma", "grandpa", "rocko", "sandy", "shelley", "flo", "eddy"];
+
+function isMandarinCN(v) {
+  return (v.lang || "").toLowerCase().replace("_", "-").startsWith("zh-cn");
+}
+
+// Ranking. The single biggest factor is zh-CN: we are teaching 普通话, so a
+// Taiwanese (zh-TW) or Cantonese (zh-HK) voice is the wrong accent even when
+// it is the higher-fidelity voice.
 function quality(v) {
   const n = (v.name || "").toLowerCase();
   let s = 0;
-  if (n.includes("natural") || n.includes("neural")) s += 100;
+  if (isMandarinCN(v)) s += 500;                                  // right accent, above all else
+  if (n.includes("natural") || n.includes("neural")) s += 100;    // neural > concatenative
   if (n.includes("online")) s += 30;
   if (n.includes("google")) s += 25;
   if (v.localService === false) s += 10;
+  if (NOVELTY.some((h) => n.includes(h))) s -= 60;                // usable, but not the default
   return s;
 }
 
-function genderOf(v) {
+export function genderOf(v) {
   const n = (v.name || "").toLowerCase();
   if (MALE_HINTS.some((h) => n.includes(h))) return "male";
   if (FEMALE_HINTS.some((h) => n.includes(h))) return "female";
@@ -48,8 +72,10 @@ function genderOf(v) {
 }
 
 export function useChineseTTS() {
-  const [voices, setVoices] = useState({ female: null, male: null, all: [] });
-  const [maleIsSimulated, setMaleIsSimulated] = useState(false);
+  const [all, setAll] = useState([]);
+  const [auto, setAuto] = useState({ female: null, male: null });
+  // User's explicit choice, by voiceURI. Beats the heuristic every time.
+  const [override, setOverride] = useState({ female: null, male: null });
   const [speaking, setSpeaking] = useState(false);
 
   // Bumped on every stop / new playback. Any callback holding a stale
@@ -67,21 +93,29 @@ export function useChineseTTS() {
         .filter((v) => v.lang && v.lang.toLowerCase().startsWith("zh"))
         .sort((a, b) => quality(b) - quality(a));
 
-      if (!zh.length) {
-        setVoices({ female: null, male: null, all: [] });
-        return;
-      }
-
-      const female = zh.find((v) => genderOf(v) === "female") || zh[0];
-      const male = zh.find((v) => genderOf(v) === "male");
-
-      setMaleIsSimulated(!male);
-      setVoices({ female, male: male || female, all: zh });
+      setAll(zh);
+      setAuto({
+        female: zh.find((v) => genderOf(v) === "female") || zh[0] || null,
+        male: zh.find((v) => genderOf(v) === "male") || null,
+      });
     };
 
     pick();
     window.speechSynthesis.onvoiceschanged = pick;
     return () => { window.speechSynthesis.onvoiceschanged = null; };
+  }, []);
+
+  const byURI = (uri) => all.find((v) => v.voiceURI === uri) || null;
+
+  const female = (override.female && byURI(override.female)) || auto.female;
+  const male = (override.male && byURI(override.male)) || auto.male;
+
+  // Only "simulated" when there is genuinely no male voice to use.
+  const maleIsSimulated = !male;
+  const voices = { female, male: male || female, all };
+
+  const setVoiceFor = useCallback((gender, voiceURI) => {
+    setOverride((o) => ({ ...o, [gender]: voiceURI || null }));
   }, []);
 
   // Chrome silently suspends synthesis after ~15s. Nudging it keeps a long
@@ -181,8 +215,10 @@ export function useChineseTTS() {
     stop,
     speaking,
     voices,
+    setVoiceFor,
+    genderOf,
     maleIsSimulated,
-    hasVoice: voices.all.length > 0,
+    hasVoice: all.length > 0,
   };
 }
 

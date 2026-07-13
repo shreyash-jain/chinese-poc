@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Volume2, Square, X, PenLine, Loader2, BookOpen, Quote,
-  Sparkles, ChevronRight, Play, Shuffle, CornerDownRight,
+  Sparkles, ChevronRight, Play, Shuffle, CornerDownRight, Settings2,
+  Type, Palette, ArrowUp,
 } from "lucide-react";
 
 import { DICT, SIMP_TO_TRAD, COMPONENTS } from "./data/dict.js";
@@ -15,13 +16,25 @@ import { useChineseTTS } from "./lib/tts.js";
 // is to make WORD BOUNDARIES visible, so adjacent words simply differ.
 const WORD_COLORS = ["#B4453C", "#2A6BB0", "#3B8A57", "#8B5BA6", "#B5762A", "#1B7C85"];
 
+// Every piece of UI chrome carries its English gloss. The learners read Chinese;
+// the people buying and administering the product may not.
 const KIND_LABEL = {
-  sg: "新加坡华语",
-  idiom: "成语 · 惯用语",
-  name: "专有名词",
-  word: "词语",
-  char: "单字",
+  sg: ["新加坡华语", "Singapore Chinese"],
+  idiom: ["成语 · 惯用语", "Idiom"],
+  name: ["专有名词", "Proper noun"],
+  word: ["词语", "Word"],
+  char: ["单字", "Character"],
 };
+
+// Bilingual label: Chinese primary, English secondary.
+function L({ zh, en, block }) {
+  return (
+    <span style={block ? S.lblBlock : S.lblInline}>
+      <span>{zh}</span>
+      <span style={S.lblEn}>{en}</span>
+    </span>
+  );
+}
 
 // ── traditional conversion (best-effort: word-level, then character-level) ──
 function toTrad(s) {
@@ -59,12 +72,16 @@ export default function ChineseReader() {
   const [annotate, setAnnotate] = useState(true);        // marks 新加坡华语 + 成语
   const [gender, setGender] = useState("female");
   const [rate, setRate] = useState(0.85);
+  const [voicePanel, setVoicePanel] = useState(false);
 
   const [playingIdx, setPlayingIdx] = useState(null);
   const [selection, setSelection] = useState("");
   const [active, setActive] = useState(null);            // the word in the panel
 
-  const { speak, speakSequence, stop, speaking, voices, maleIsSimulated, hasVoice } = useChineseTTS();
+  const {
+    speak, speakSequence, stop, speaking,
+    voices, setVoiceFor, genderOf, maleIsSimulated, hasVoice,
+  } = useChineseTTS();
   const hwState = useHanziWriter();
 
   const passage = PASSAGES[passageIdx];
@@ -110,8 +127,11 @@ export default function ChineseReader() {
 
   const display = (s) => (script === "trad" ? toTrad(s) : s);
 
+  // +72 reserves the gutter the side rail floats in, so it never overlaps text.
+  const shellPad = (active ? PANEL_W : 0) + 72;
+
   return (
-    <div style={{ ...S.shell, paddingRight: active ? PANEL_W : 0 }}>
+    <div style={{ ...S.shell, paddingRight: shellPad }}>
       <style>{CSS}</style>
 
       <div style={S.main}>
@@ -157,7 +177,7 @@ export default function ChineseReader() {
             <button key={p.id} onClick={() => setPassageIdx(i)}
               style={{ ...S.passageTab, ...(i === passageIdx ? S.passageTabOn : {}) }}>
               <div style={S.passageTabTitle}>{display(p.title)}</div>
-              <div style={S.passageTabMeta}>测试：{p.tests}</div>
+              <div style={S.passageTabMeta}>测试 Tests：{p.tests}</div>
             </button>
           ))}
         </div>
@@ -165,23 +185,32 @@ export default function ChineseReader() {
         {/* ── Playback bar ─────────────────────────────────────────── */}
         <div style={S.bar}>
           <div style={S.barGroup}>
-            <span style={S.barLabel}>朗读声音</span>
+            <span style={S.barLabel}><L zh="朗读声音" en="Voice" /></span>
             <div style={S.segmented}>
               <button onClick={() => setGender("female")}
-                style={{ ...S.segBtn, ...(gender === "female" ? S.segOn : {}) }}>女声</button>
+                style={{ ...S.segBtn, ...(gender === "female" ? S.segOn : {}) }}>
+                女声 <span style={S.segEn}>Female</span>
+              </button>
               <button onClick={() => setGender("male")}
-                style={{ ...S.segBtn, ...(gender === "male" ? S.segOn : {}) }}>男声</button>
+                style={{ ...S.segBtn, ...(gender === "male" ? S.segOn : {}) }}>
+                男声 <span style={S.segEn}>Male</span>
+              </button>
             </div>
+            <button onClick={() => setVoicePanel((v) => !v)}
+              style={{ ...S.iconBtn, ...(voicePanel ? S.iconBtnOn : {}) }}
+              title="语音设置 · Voice settings">
+              <Settings2 size={14} />
+            </button>
           </div>
 
           <div style={S.barGroup}>
             {speaking ? (
               <button onClick={stopAll} style={S.btnStop}>
-                <Square size={13} fill="currentColor" /> 停止
+                <Square size={13} fill="currentColor" /> 停止 <span style={S.btnEn}>Stop</span>
               </button>
             ) : (
               <button onClick={() => playAll(0)} style={S.btnPrimary}>
-                <Volume2 size={15} /> 朗读全文
+                <Volume2 size={15} /> 朗读全文 <span style={S.btnEn}>Read aloud</span>
               </button>
             )}
 
@@ -189,49 +218,53 @@ export default function ChineseReader() {
               disabled={!selection}
               onClick={() => speak(selection, { gender, rate })}
               style={{ ...S.btnGhost, ...(!selection ? S.disabled : {}) }}
-              title={selection ? `播放：${selection}` : "先在文章中选取一段文字"}>
-              <Play size={13} /> 播放选中
+              title={selection ? `播放：${selection}` : "先在文章中选取一段文字 · Select text in the passage first"}>
+              <Play size={13} /> 播放选中 <span style={S.btnEn}>Play selection</span>
               {selection && <span style={S.selChip}>{display(selection).slice(0, 8)}</span>}
             </button>
           </div>
 
           <div style={S.barGroup}>
-            <span style={S.barLabel}>语速</span>
+            <span style={S.barLabel}><L zh="语速" en="Speed" /></span>
             <input type="range" min="0.5" max="1.2" step="0.05" value={rate}
               onChange={(e) => setRate(+e.target.value)} style={{ width: 80 }} />
             <span style={S.rateNum}>{rate.toFixed(2)}×</span>
           </div>
         </div>
 
-        {/* ── Reading aids ─────────────────────────────────────────── */}
-        <div style={S.chips}>
-          <button onClick={() => setShowPinyin((v) => !v)}
-            style={{ ...S.chip, ...(showPinyin ? S.chipOn : {}) }}>
-            汉语拼音 · {showPinyin ? "开" : "关"}
-          </button>
-          <button onClick={() => setWordColor((v) => !v)}
-            style={{ ...S.chip, ...(wordColor ? S.chipOn : {}) }}>
-            词语分色 · {wordColor ? "开" : "关"}
-          </button>
-          <button onClick={() => setAnnotate((v) => !v)}
-            style={{ ...S.chip, ...(annotate ? S.chipOn : {}) }}>
-            标注新加坡华语／成语 · {annotate ? "开" : "关"}
-          </button>
+        {/* ── Voice settings ───────────────────────────────────────── */}
+        {voicePanel && (
+          <VoiceSettings
+            voices={voices}
+            setVoiceFor={setVoiceFor}
+            genderOf={genderOf}
+            maleIsSimulated={maleIsSimulated}
+            speak={speak}
+            rate={rate}
+          />
+        )}
+
+        {/* Reading aids now live in the side rail on the right. */}
+        <div style={S.hintRow}>
           <span style={S.hint}>
-            默认是全黑的基本文本 · 悬停显示可点击 · 点击查看释义、例句和笔顺
+            默认是全黑的基本文本 · 悬停显示可点击 · 点击查看释义、例句和笔顺 · 右侧工具栏可开关拼音、分色和标注<br />
+            <span style={{ opacity: 0.85 }}>
+              Plain black text by default · hover to reveal a word is clickable · click for meanings, examples and
+              stroke order · use the right-hand toolbar to toggle pinyin, word colours and annotations
+            </span>
           </span>
         </div>
 
         {!hasVoice && (
           <div style={S.warn}>
-            这台机器没有安装中文语音，朗读会用默认语音（可能不是中文）。
-            正式版会走 Azure Neural TTS（女声 XiaoxiaoNeural／男声 YunxiNeural），两把声音在所有设备上都一致。
+            这台机器没有安装中文语音，朗读会用默认语音（可能不是中文）。<br />
+            <i>No Chinese voice is installed on this machine — playback will fall back to the default system voice.</i>
           </div>
         )}
         {hasVoice && maleIsSimulated && (
           <div style={S.warn}>
-            这台机器只装了一把中文语音（{voices.female?.name}）。「男声」目前是用降低音调模拟的。
-            正式版接 Azure Neural TTS 后就是两把真人级的声音。
+            这台机器找不到中文男声，「男声」目前是用降低音调模拟的。请用上面的 <b>语音设置</b> 手动指定一把，或改用 Microsoft Edge。<br />
+            <i>No Chinese male voice found — “Male” is currently simulated by lowering the pitch. Assign one manually in <b>Voice settings</b>, or use Microsoft Edge.</i>
           </div>
         )}
 
@@ -276,6 +309,17 @@ export default function ChineseReader() {
         </footer>
       </div>
 
+      <SideRail
+        offset={active ? PANEL_W + 14 : 14}
+        speaking={speaking}
+        onPlay={() => playAll(0)}
+        onStop={stopAll}
+        showPinyin={showPinyin} setShowPinyin={setShowPinyin}
+        wordColor={wordColor} setWordColor={setWordColor}
+        annotate={annotate} setAnnotate={setAnnotate}
+        voicePanel={voicePanel} setVoicePanel={setVoicePanel}
+      />
+
       {active && (
         <WordPanel
           word={active}
@@ -288,6 +332,193 @@ export default function ChineseReader() {
           onNavigate={setActive}
         />
       )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SIDE RAIL — the vertical toolbar, same shape as the reference site's.
+//
+// The client's complaint about theirs was that it is pure icons: "you don't
+// even know there's such a function ... I have to click here and there before
+// I realise it's a function." So each button keeps a PERMANENT caption, and
+// hovering opens a flyout with the Chinese name, the English name, and a
+// one-line explanation of what the toggle actually does.
+// ════════════════════════════════════════════════════════════════════════════
+function RailButton({ icon: Icon, caption, zh, en, help, helpEn, on, onClick }) {
+  const [hover, setHover] = useState(false);
+
+  return (
+    <div style={S.railItem}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}>
+      <button onClick={onClick} style={{ ...S.railBtn, ...(on ? S.railBtnOn : {}) }}>
+        <Icon size={17} />
+        <span style={S.railCaption}>{caption}</span>
+      </button>
+
+      {hover && (
+        <div style={S.flyout}>
+          <div style={S.flyoutTitle}>
+            {zh}
+            {on !== undefined && (
+              <span style={{ ...S.flyoutState, ...(on ? S.flyoutOn : {}) }}>
+                {on ? "开 ON" : "关 OFF"}
+              </span>
+            )}
+          </div>
+          <div style={S.flyoutEn}>{en}</div>
+          <div style={S.flyoutHelp}>{help}</div>
+          <div style={S.flyoutHelpEn}>{helpEn}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SideRail({
+  offset, speaking, onPlay, onStop,
+  showPinyin, setShowPinyin,
+  wordColor, setWordColor,
+  annotate, setAnnotate,
+  voicePanel, setVoicePanel,
+}) {
+  return (
+    <div style={{ ...S.rail, right: offset }}>
+      <RailButton
+        icon={speaking ? Square : Volume2}
+        caption={speaking ? "停止" : "朗读"}
+        zh={speaking ? "停止朗读" : "朗读全文"}
+        en={speaking ? "Stop reading" : "Read the whole passage"}
+        help="从头读到尾，正在读的句子会自动高亮并卷动到画面中央。"
+        helpEn="Reads top to bottom, auto-highlighting and scrolling to the sentence being spoken."
+        onClick={speaking ? onStop : onPlay}
+      />
+
+      <RailButton
+        icon={Type}
+        caption="拼音"
+        zh="汉语拼音"
+        en="Hanyu Pinyin"
+        help="在每个字上方标注拼音和声调。"
+        helpEn="Shows pinyin with tone marks above each character."
+        on={showPinyin}
+        onClick={() => setShowPinyin((v) => !v)}
+      />
+
+      <RailButton
+        icon={Palette}
+        caption="分色"
+        zh="词语分色"
+        en="Word colours"
+        help="一个词一个颜色，让词与词的分界看得出来。不是按声调上色。"
+        helpEn="One word, one colour — so word boundaries are visible. This is NOT tone colouring."
+        on={wordColor}
+        onClick={() => setWordColor((v) => !v)}
+      />
+
+      <RailButton
+        icon={Sparkles}
+        caption="标注"
+        zh="标注新加坡华语／成语"
+        en="Mark Singapore terms & idioms"
+        help="给沙爹、菜头粿这类本地词，和举手之劳这类成语加上底线。"
+        helpEn="Underlines local terms like 沙爹 and 菜头粿, and idioms like 举手之劳."
+        on={annotate}
+        onClick={() => setAnnotate((v) => !v)}
+      />
+
+      <div style={S.railDivider} />
+
+      <RailButton
+        icon={Settings2}
+        caption="语音"
+        zh="语音设置"
+        en="Voice settings"
+        help="选择这台机器上要用哪一把女声和男声，可以试听。"
+        helpEn="Choose which installed voice to use for female and male, and test them."
+        on={voicePanel}
+        onClick={() => setVoicePanel((v) => !v)}
+      />
+
+      <RailButton
+        icon={ArrowUp}
+        caption="回顶"
+        zh="回到顶部"
+        en="Back to top"
+        help="回到文章开头。"
+        helpEn="Jump back to the start of the article."
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      />
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// VOICE SETTINGS — shows every Chinese voice the browser can actually see, and
+// lets you assign 女声 / 男声 by hand. The auto-pick is a name heuristic, and a
+// heuristic is exactly the wrong thing to be relying on live in front of a
+// client, so the override is always available.
+// ════════════════════════════════════════════════════════════════════════════
+const SAMPLE = "民以食为天，美食比演讲能更快拉近人与人之间的距离。";
+
+function VoiceSettings({ voices, setVoiceFor, genderOf, maleIsSimulated, speak, rate }) {
+  const { all, female, male } = voices;
+
+  const row = (gender, current) => (
+    <div style={S.vsRow}>
+      <div style={S.vsLabel}>
+        {gender === "female" ? "女声" : "男声"}
+        <span style={S.vsLabelEn}>{gender === "female" ? "Female" : "Male"}</span>
+      </div>
+
+      <select
+        value={current?.voiceURI || ""}
+        onChange={(e) => setVoiceFor(gender, e.target.value)}
+        style={S.vsSelect}>
+        {all.map((v) => (
+          <option key={v.voiceURI} value={v.voiceURI}>
+            {v.name} — {v.lang}
+            {genderOf(v) ? ` (${genderOf(v) === "male" ? "男 male" : "女 female"})` : " (未知 unknown)"}
+          </option>
+        ))}
+      </select>
+
+      <button style={S.vsTest}
+        onClick={() => speak(SAMPLE, { gender, rate })}>
+        <Volume2 size={12} /> 试听 <span style={S.btnEn}>Test</span>
+      </button>
+    </div>
+  );
+
+  return (
+    <div style={S.vs}>
+      <div style={S.vsHead}>
+        <Settings2 size={13} />
+        <b>语音设置</b>
+        <span style={S.vsHeadEn}>Voice settings — {all.length} Chinese voice{all.length === 1 ? "" : "s"} available in this browser</span>
+      </div>
+
+      {row("female", female)}
+      {row("male", maleIsSimulated ? null : male)}
+
+      <div style={S.vsNote}>
+        建议：女声用 <b>Tingting（zh-CN）</b>，男声用 <b>Reed</b> 或 <b>Eddy（zh-CN）</b>。
+        避开 <b>Meijia（zh-TW）</b> 和 <b>Sinji（zh-HK）</b> —— 那是台湾腔和粤语，不是我们要教的普通话。
+        <br />
+        <i>
+          Recommended: Tingting (zh-CN) for female, Reed or Eddy (zh-CN) for male.
+          Avoid Meijia (zh-TW) and Sinji (zh-HK) — those are Taiwanese and Cantonese, not the Mandarin being taught.
+        </i>
+        <br /><br />
+        正式版会接 Azure Neural TTS（<b>zh-CN-XiaoxiaoNeural</b> 女 / <b>zh-CN-YunxiNeural</b> 男），
+        这样两把声音在每一台设备上都完全一致，不再依赖用户装了什么。
+        <br />
+        <i>
+          Production will proxy Azure Neural TTS so both voices are identical on every device,
+          instead of depending on what the user happens to have installed.
+        </i>
+      </div>
     </div>
   );
 }
@@ -344,10 +575,10 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
     (entry.syn?.length || 0) + (entry.ant?.length || 0) + (entry.rel?.length || 0);
 
   const TABS = [
-    { id: "def", label: "释义", icon: BookOpen },
-    { id: "ex", label: `例句${entry.ex?.length ? ` ${entry.ex.length}` : ""}`, icon: Quote },
-    { id: "syn", label: `近义${synCount ? ` ${synCount}` : ""}`, icon: Shuffle },
-    { id: "stroke", label: "笔顺", icon: PenLine },
+    { id: "def", zh: "释义", en: "Meanings", icon: BookOpen, n: entry.senses?.length },
+    { id: "ex", zh: "例句", en: "Examples", icon: Quote, n: entry.ex?.length },
+    { id: "syn", zh: "近义", en: "Synonyms", icon: Shuffle, n: synCount },
+    { id: "stroke", zh: "笔顺", en: "Strokes", icon: PenLine },
   ];
 
   return (
@@ -361,7 +592,8 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
             ...S.kindTag,
             ...(entry.kind === "sg" ? S.tagSg : entry.kind === "idiom" ? S.tagIdiom : S.tagPlain),
           }}>
-            {KIND_LABEL[entry.kind] || "词语"}
+            {(KIND_LABEL[entry.kind] || KIND_LABEL.word)[0]}
+            <span style={S.kindTagEn}>{(KIND_LABEL[entry.kind] || KIND_LABEL.word)[1]}</span>
           </span>
         </div>
 
@@ -390,7 +622,11 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
         {TABS.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ ...S.tab, ...(tab === t.id ? S.tabOn : {}) }}>
-            <t.icon size={13} /> {t.label}
+            <t.icon size={12} />
+            <span style={S.tabZh}>
+              {t.zh}{t.n ? <span style={S.tabN}>{t.n}</span> : null}
+            </span>
+            <span style={S.tabEn}>{t.en}</span>
           </button>
         ))}
       </div>
@@ -418,7 +654,9 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
             {/* Word → characters */}
             {chars.length > 1 && (
               <div style={S.block}>
-                <div style={S.blockLabel}>这个词由 {chars.length} 个字组成</div>
+                <div style={S.blockLabel}>
+                  这个词由 {chars.length} 个字组成 <span style={S.blockLabelEn}>Made of {chars.length} characters</span>
+                </div>
                 <div style={S.charGrid}>
                   {chars.map((c, i) => {
                     const ce = DICT[c];
@@ -447,7 +685,7 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
             {entry.ex?.length ? (
               <>
                 <div style={S.blockLabel}>
-                  用「{shown}」造句 · 共 {entry.ex.length} 句
+                  用「{shown}」造句 <span style={S.blockLabelEn}>Sentences using this word</span> · {entry.ex.length}
                 </div>
                 {entry.ex.map((e, i) => (
                   <div key={i} style={S.exRow}>
@@ -482,22 +720,23 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
             )}
 
             <RelatedGroup
-              title="近义词"
+              title="近义词" titleEn="Synonyms"
               hint="意思相近，但用法未必相同 —— 注意下面的辨析。"
+              hintEn="Close in meaning, but not always interchangeable — see the usage notes."
               items={entry.syn}
               tone="syn"
               speak={speak} gender={gender} rate={rate}
               onNavigate={onNavigate} script={script}
             />
             <RelatedGroup
-              title="反义词"
+              title="反义词" titleEn="Antonyms"
               items={entry.ant}
               tone="ant"
               speak={speak} gender={gender} rate={rate}
               onNavigate={onNavigate} script={script}
             />
             <RelatedGroup
-              title="相关词"
+              title="相关词" titleEn="Related words"
               items={entry.rel}
               tone="rel"
               speak={speak} gender={gender} rate={rate}
@@ -509,7 +748,9 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
         {/* ── 笔顺 ─────────────────────────────────────────────────── */}
         {tab === "stroke" && (
           <div style={S.block}>
-            <div style={S.blockLabel}>笔顺 — 先看动画，再自己描一次</div>
+            <div style={S.blockLabel}>
+              笔顺 <span style={S.blockLabelEn}>Stroke order — watch, then trace it yourself</span>
+            </div>
             <div style={S.strokeRow}>
               {chars.map((c, i) => (
                 <div key={i} style={S.strokeCell}>
@@ -523,7 +764,7 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
 
             {chars.some((c) => COMPONENTS[c]) && (
               <>
-                <div style={{ ...S.blockLabel, marginTop: 22 }}>部件拆解</div>
+                <div style={{ ...S.blockLabel, marginTop: 22 }}>部件拆解 <span style={S.blockLabelEn}>Character components</span></div>
                 {chars.filter((c) => COMPONENTS[c]).map((c) => (
                   <div key={c} style={S.compBlock}>
                     <div style={S.compHead}>
@@ -557,16 +798,21 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
 // one that doesn't still shows its pinyin and gloss, so the list is never a
 // dead end. The `note` is the 辨析 — the part that says why two near-synonyms
 // are not actually interchangeable.
-function RelatedGroup({ title, hint, items, tone, speak, gender, rate, onNavigate, script }) {
+function RelatedGroup({ title, titleEn, hint, hintEn, items, tone, speak, gender, rate, onNavigate, script }) {
   if (!items?.length) return null;
 
   return (
     <div style={S.block}>
       <div style={S.blockLabel}>
         <span style={{ ...S.relDot, background: REL_TONE[tone] }} />
-        {title} · {items.length}
+        {title} <span style={S.blockLabelEn}>{titleEn}</span> · {items.length}
       </div>
-      {hint && <div style={S.relHint}>{hint}</div>}
+      {hint && (
+        <div style={S.relHint}>
+          {hint}
+          {hintEn && <><br />{hintEn}</>}
+        </div>
+      )}
 
       {items.map((it, i) => {
         const known = !!DICT[it.w];
@@ -686,6 +932,8 @@ const PAPER = "#F6F2E9";
 const SERIF = "'Noto Serif SC', Georgia, serif";
 const PANEL_W = 400;
 
+const REL_TONE = { syn: "#3B8A57", ant: "#B4453C", rel: "#2A6BB0" };
+
 const S = {
   shell: { fontFamily: "'Inter', system-ui, sans-serif", background: PAPER, color: INK, minHeight: "100vh", transition: "padding-right 0.22s" },
   // NOTE: centre with explicit marginLeft/marginRight, never the `margin` shorthand.
@@ -721,10 +969,45 @@ const S = {
   disabled: { opacity: 0.3, cursor: "not-allowed" },
   selChip: { fontFamily: SERIF, background: "#f0e6d4", padding: "1px 5px", borderRadius: 3, fontSize: 12 },
 
-  chips: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 12 },
-  chip: { border: "1.5px solid #ddd5c4", background: "#fffdf7", color: "#6b665c", padding: "6px 11px", borderRadius: 16, fontSize: 12, fontWeight: 600, cursor: "pointer" },
-  chipOn: { borderColor: INK, background: INK, color: PAPER },
-  hint: { fontSize: 11.5, color: "#9a9488", marginLeft: 2 },
+  hintRow: { marginTop: 12 },
+  hint: { fontSize: 11.5, color: "#9a9488", lineHeight: 1.7, display: "block" },
+
+  // ── bilingual labels ──
+  lblInline: { display: "inline-flex", alignItems: "baseline", gap: 4 },
+  lblBlock: { display: "flex", flexDirection: "column" },
+  lblEn: { fontSize: "0.82em", fontWeight: 500, opacity: 0.6 },
+  segEn: { fontSize: 10, fontWeight: 500, opacity: 0.65, marginLeft: 2 },
+  btnEn: { fontSize: 10.5, fontWeight: 500, opacity: 0.7 },
+
+  iconBtn: { display: "grid", placeItems: "center", width: 28, height: 28, border: "1.5px solid #ddd5c4", background: "#fffdf7", color: "#6b665c", borderRadius: 3, cursor: "pointer" },
+  iconBtnOn: { borderColor: INK, background: INK, color: PAPER },
+
+  // ── side rail ──
+  rail: { position: "fixed", top: "50%", transform: "translateY(-50%)", display: "flex", flexDirection: "column", gap: 6, zIndex: 35, transition: "right .22s" },
+  railItem: { position: "relative", display: "flex", justifyContent: "flex-end" },
+  railBtn: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, width: 50, height: 50, background: "#fffdf7", border: "1px solid #e0d8c6", borderRadius: 8, color: "#6b665c", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", transition: "all .12s" },
+  railBtnOn: { background: ACCENT, borderColor: ACCENT, color: "#fff", boxShadow: "0 2px 8px rgba(200,69,59,0.3)" },
+  railCaption: { fontSize: 9, fontWeight: 700, letterSpacing: "0.02em" },
+  railDivider: { height: 1, background: "#e0d8c6", margin: "3px 8px" },
+
+  flyout: { position: "absolute", right: 58, top: "50%", transform: "translateY(-50%)", width: 250, background: INK, color: "#fff", borderRadius: 6, padding: "11px 13px", boxShadow: "0 8px 28px rgba(0,0,0,0.28)", zIndex: 60, pointerEvents: "none" },
+  flyoutTitle: { display: "flex", alignItems: "center", gap: 7, fontFamily: SERIF, fontSize: 15, fontWeight: 700 },
+  flyoutState: { fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 3, background: "rgba(255,255,255,0.15)", color: "#c9c3b8" },
+  flyoutOn: { background: ACCENT, color: "#fff" },
+  flyoutEn: { fontSize: 11.5, fontWeight: 600, color: "#d8b4ae", marginTop: 1 },
+  flyoutHelp: { fontSize: 11.5, color: "#e8e4db", marginTop: 7, lineHeight: 1.55 },
+  flyoutHelpEn: { fontSize: 11, color: "#a8a297", marginTop: 3, lineHeight: 1.5, fontStyle: "italic" },
+
+  // ── voice settings ──
+  vs: { background: "#fffdf7", border: "1px solid #e4ddcd", borderRadius: 5, padding: "14px 16px", marginTop: 10 },
+  vsHead: { display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: INK, marginBottom: 12 },
+  vsHeadEn: { fontSize: 11, color: "#9a9488", fontWeight: 500 },
+  vsRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 8 },
+  vsLabel: { display: "flex", flexDirection: "column", width: 58, flexShrink: 0, fontSize: 12.5, fontWeight: 700, color: INK },
+  vsLabelEn: { fontSize: 9.5, fontWeight: 500, color: "#9a9488" },
+  vsSelect: { flex: 1, fontSize: 12, padding: "6px 8px", border: "1px solid #ddd5c4", borderRadius: 3, background: "#fff", color: INK, fontFamily: "inherit", minWidth: 0 },
+  vsTest: { display: "inline-flex", alignItems: "center", gap: 4, background: "#f2ece0", border: "1px solid #e0d8c6", color: INK, fontSize: 11.5, fontWeight: 600, padding: "6px 10px", borderRadius: 3, cursor: "pointer", flexShrink: 0 },
+  vsNote: { fontSize: 11, color: "#7a705f", background: "#f6f1e4", borderLeft: `3px solid ${ACCENT}`, padding: "9px 11px", borderRadius: 2, marginTop: 10, lineHeight: 1.6 },
 
   warn: { background: "#fbf0d8", border: "1px solid #e4c97a", color: "#7a5e1e", fontSize: 12, padding: "9px 13px", borderRadius: 4, marginTop: 12, lineHeight: 1.55 },
 
@@ -765,9 +1048,13 @@ const S = {
   voiceBtn: { display: "inline-flex", alignItems: "center", gap: 5, background: "#f2ece0", border: "1px solid #e0d8c6", color: INK, fontSize: 12, fontWeight: 600, padding: "6px 11px", borderRadius: 3, cursor: "pointer" },
   note: { fontSize: 11.5, color: "#7a705f", background: "#f6f1e4", borderLeft: `3px solid ${ACCENT}`, padding: "7px 10px", borderRadius: 2, marginTop: 12, lineHeight: 1.5 },
 
-  tabs: { display: "flex", gap: 2, padding: "0 16px", borderBottom: "1px solid #ece5d5" },
-  tab: { display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", border: "none", borderBottom: "2px solid transparent", padding: "10px 10px", fontSize: 12.5, fontWeight: 600, color: "#9a9488", cursor: "pointer", marginBottom: -1 },
+  tabs: { display: "flex", gap: 0, padding: "0 12px", borderBottom: "1px solid #ece5d5" },
+  tab: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 1, background: "transparent", border: "none", borderBottom: "2px solid transparent", padding: "9px 4px", color: "#9a9488", cursor: "pointer", marginBottom: -1 },
   tabOn: { color: INK, borderBottomColor: ACCENT },
+  tabZh: { display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12.5, fontWeight: 700 },
+  tabN: { fontSize: 9, fontWeight: 700, background: "#ece5d5", color: "#7a705f", borderRadius: 7, padding: "0 4px", lineHeight: "13px" },
+  tabEn: { fontSize: 9, fontWeight: 500, opacity: 0.75 },
+  kindTagEn: { fontWeight: 500, opacity: 0.7, marginLeft: 4 },
 
   panelBody: { flex: 1, overflowY: "auto", padding: "18px 22px 40px" },
 
@@ -779,7 +1066,8 @@ const S = {
   senseZh: { fontFamily: SERIF, fontSize: 13, lineHeight: 1.6, color: "#6b665c", marginTop: 2 },
 
   block: { marginTop: 22 },
-  blockLabel: { fontSize: 11, fontWeight: 700, color: "#9a9488", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 11 },
+  blockLabel: { fontSize: 11, fontWeight: 700, color: "#9a9488", letterSpacing: "0.04em", marginBottom: 11 },
+  blockLabelEn: { fontWeight: 500, opacity: 0.8 },
 
   charGrid: { display: "flex", gap: 8, flexWrap: "wrap" },
   charCell: { position: "relative", display: "flex", flexDirection: "column", gap: 2, alignItems: "flex-start", background: "#faf7ef", border: "1px solid #e4ddcd", borderRadius: 4, padding: "9px 11px", minWidth: 84, cursor: "pointer", textAlign: "left" },
@@ -787,6 +1075,18 @@ const S = {
   charPy: { fontSize: 12, color: ACCENT, fontWeight: 600 },
   charDef: { fontSize: 10.5, color: "#8d8577", lineHeight: 1.3 },
   charArrow: { position: "absolute", top: 8, right: 6, color: "#c4bcaa" },
+
+  // ── related words ──
+  relDot: { display: "inline-block", width: 7, height: 7, borderRadius: "50%", marginRight: 6 },
+  relHint: { fontSize: 11.5, color: "#a09a90", marginTop: -5, marginBottom: 10, lineHeight: 1.5, fontStyle: "italic" },
+  relRow: { borderTop: "1px solid #efe8d8", padding: "10px 0" },
+  relHead: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  relWord: { display: "inline-flex", alignItems: "center", gap: 2, fontFamily: SERIF, fontSize: 19, fontWeight: 700, background: "transparent", border: "none", padding: 0, color: "#8d8577", cursor: "default" },
+  relWordLink: { color: INK, cursor: "pointer" },
+  relPlay: { background: "#f2ece0", border: "none", borderRadius: 3, width: 21, height: 21, display: "grid", placeItems: "center", cursor: "pointer", color: INK, flexShrink: 0 },
+  relPy: { fontSize: 12, color: ACCENT, fontWeight: 600, marginTop: 1 },
+  relEn: { fontSize: 12.5, color: "#6b665c", marginTop: 2, lineHeight: 1.45 },
+  relNote: { display: "flex", gap: 5, fontSize: 11.5, color: "#7a705f", background: "#f7f3e8", borderRadius: 3, padding: "6px 8px", marginTop: 6, lineHeight: 1.55 },
 
   exRow: { borderTop: "1px solid #efe8d8", padding: "12px 0" },
   exHead: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 },

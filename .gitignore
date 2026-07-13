@@ -1,7 +1,12 @@
 node_modules/
 dist/
 .wrangler/
-*.log
 .DS_Store
-.env
-.env.*
+
+# One lockfile only. Cloudflare Pages picks its package manager by which
+# lockfile it finds, and prefers pnpm — a stray pnpm-lock.yaml made CI run
+# `pnpm install --frozen-lockfile` against an out-of-date lockfile and fail.
+# This project uses npm; package-lock.json is the source of truth.
+pnpm-lock.yaml
+yarn.lock
+bun.lockb

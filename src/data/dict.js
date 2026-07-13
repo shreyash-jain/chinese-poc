@@ -1056,6 +1056,83 @@ const CHARS = {
   "键": { py: "jiàn", kind: "char", trad: "鍵", senses: [{ en: "key; button", zh: "用手按的部件" }] },
 };
 
+// Single characters that make up the showcase words (the Singapore terms and
+// the idioms). Without these, the panel's "这个词由 N 个字组成" breakdown renders
+// a row of em-dashes for exactly the words the client is most likely to click.
+// A production build gets all of these free from CC-CEDICT.
+const SHOWCASE_CHARS = {
+  // 沙爹 · 菜头粿 · 老巴刹 · 福建炒虾面 · 斑兰蛋糕 · 肉干 · 巴士 · 烤鸡翅
+  "沙": { py: "shā", kind: "char", senses: [{ en: "sand; grit", zh: "细小的石粒" }, { en: "hoarse (of voice)", zh: "嗓音不清脆" }] },
+  "爹": { py: "diē", kind: "char", senses: [{ en: "dad; father", zh: "父亲（口语）" }] },
+  "菜": { py: "cài", kind: "char", senses: [{ en: "vegetable; greens", zh: "可以做副食品的植物" }, { en: "dish; course (of a meal)", zh: "经过烹调的食品" }] },
+  "头": { py: "tóu", kind: "char", trad: "頭", senses: [{ en: "head", zh: "人身体的最上部分" }, { en: "top; first; leading", zh: "第一的，最前的" }, { en: "measure word for livestock", zh: "用于牛、猪等的量词" }] },
+  "粿": { py: "guǒ", kind: "char", senses: [{ en: "a steamed rice-flour cake (Teochew/Hokkien)", zh: "米制的糕点（潮州、闽南话）" }] },
+  "老": { py: "lǎo", kind: "char", senses: [{ en: "old; aged", zh: "年纪大" }, { en: "long-standing; of long experience", zh: "有经验的，时间久的" }, { en: "prefix of familiarity (老王, 老巴刹)", zh: "用在称呼前，表示亲切" }] },
+  "巴": { py: "bā", kind: "char", senses: [{ en: "to cling to; to be close to", zh: "紧贴，靠近" }, { en: "used in transliterations (巴刹, 巴士)", zh: "多用于音译词" }] },
+  "刹": { py: "shā", kind: "char", trad: "剎", senses: [{ en: "to brake; to halt", zh: "止住，使停下" }, { en: "used in transliterations (巴刹)", zh: "用于音译词" }] },
+  "福": { py: "fú", kind: "char", senses: [{ en: "good fortune; blessing; happiness", zh: "幸福，好运气" }] },
+  "建": { py: "jiàn", kind: "char", senses: [{ en: "to build; to construct", zh: "修筑，建造" }, { en: "to establish; to found", zh: "创立，设立" }] },
+  "炒": { py: "chǎo", kind: "char", senses: [{ en: "to stir-fry", zh: "把食物放在锅里加热翻动" }, { en: "to speculate (in shares); to hype", zh: "买卖投机；炒作" }] },
+  "虾": { py: "xiā", kind: "char", trad: "蝦", senses: [{ en: "shrimp; prawn", zh: "生活在水里的节肢动物" }] },
+  "面": { py: "miàn", kind: "char", trad: "麵", senses: [{ en: "noodles", zh: "用面粉做成的条状食品" }, { en: "face", zh: "脸" }, { en: "surface; side; aspect", zh: "物体的表面；方面" }] },
+  "斑": { py: "bān", kind: "char", senses: [{ en: "a spot; a speck; mottled", zh: "一点一点的花纹" }, { en: "used in transliterations (斑兰)", zh: "用于音译词" }] },
+  "兰": { py: "lán", kind: "char", trad: "蘭", senses: [{ en: "orchid", zh: "一种香花" }, { en: "used in transliterations (斑兰)", zh: "用于音译词" }] },
+  "蛋": { py: "dàn", kind: "char", senses: [{ en: "egg", zh: "鸟、龟、蛇等产的卵" }] },
+  "糕": { py: "gāo", kind: "char", senses: [{ en: "cake; pastry", zh: "用米粉或面粉做的食品" }] },
+  "肉": { py: "ròu", kind: "char", senses: [{ en: "meat; flesh", zh: "动物或人体皮下的柔软组织" }, { en: "pulp; flesh (of fruit)", zh: "果实里可以吃的部分" }] },
+  "干": { py: "gān", kind: "char", trad: "乾", senses: [{ en: "dry; dried", zh: "没有水分" }, { en: "dried food (肉干, 饼干)", zh: "晒干的食品" }, { en: "to do; to work (gàn)", zh: "做（读 gàn）" }] },
+  "士": { py: "shì", kind: "char", senses: [{ en: "scholar; a person of a certain type (人士, 女士)", zh: "指某类人" }, { en: "used in transliterations (巴士)", zh: "用于音译词" }] },
+  "烤": { py: "kǎo", kind: "char", senses: [{ en: "to bake; to roast; to grill", zh: "把食物放在火上加热" }] },
+  "鸡": { py: "jī", kind: "char", trad: "雞", senses: [{ en: "chicken", zh: "常见的家禽" }] },
+  "翅": { py: "chì", kind: "char", senses: [{ en: "wing", zh: "鸟类飞行的器官" }] },
+
+  // 山珍海味 · 民以食为天 · 举手之劳 · 微不足道 · 视而不见
+  "山": { py: "shān", kind: "char", senses: [{ en: "mountain; hill", zh: "地面上高起的部分" }] },
+  "珍": { py: "zhēn", kind: "char", senses: [{ en: "treasure; precious thing", zh: "宝贵的东西" }, { en: "precious; rare", zh: "宝贵的，稀有的" }] },
+  "海": { py: "hǎi", kind: "char", senses: [{ en: "sea; ocean", zh: "大洋靠近陆地的部分" }, { en: "a great many (人海, 火海)", zh: "比喻数量很多" }] },
+  "味": { py: "wèi", kind: "char", senses: [{ en: "taste; flavour", zh: "舌头尝到的感觉" }, { en: "smell; scent", zh: "鼻子闻到的气味" }, { en: "interest; charm (趣味)", zh: "情趣，意味" }] },
+  "度": { py: "dù", kind: "char", senses: [{ en: "degree; extent", zh: "程度，限度" }, { en: "a time; an occasion (一年一度)", zh: "次，回" }, { en: "to pass (time)", zh: "过（时间）" }] },
+  "民": { py: "mín", kind: "char", senses: [{ en: "the people; the common people", zh: "百姓" }, { en: "civilian (as opposed to military)", zh: "非军人的" }] },
+  "以": { py: "yǐ", kind: "char", senses: [{ en: "with; by means of; using", zh: "用，拿" }, { en: "according to", zh: "按照" }, { en: "in order to; so as to", zh: "表示目的" }] },
+  "食": { py: "shí", kind: "char", senses: [{ en: "food; to eat", zh: "吃的东西；吃" }, { en: "an eclipse (日食)", zh: "日月被遮蔽的现象" }] },
+  "举": { py: "jǔ", kind: "char", trad: "舉", senses: [{ en: "to lift; to raise", zh: "向上抬" }, { en: "to cite; to give (an example)", zh: "提出，列出" }, { en: "act; move; deed (举动)", zh: "行为，动作" }] },
+  "劳": { py: "láo", kind: "char", trad: "勞", senses: [{ en: "labour; toil; work", zh: "出力气做事" }, { en: "to trouble (someone); may I trouble you (劳驾)", zh: "烦劳，客气话" }, { en: "fatigue; exertion", zh: "疲劳，辛苦" }] },
+  "微": { py: "wēi", kind: "char", senses: [{ en: "tiny; minute; slight", zh: "很小" }, { en: "micro- (微生物, 微信)", zh: "极小的" }] },
+  "足": { py: "zú", kind: "char", senses: [{ en: "foot", zh: "脚" }, { en: "enough; sufficient; ample", zh: "充分，够" }, { en: "worth (doing) — usually negated: 不足道", zh: "值得（多用于否定）" }] },
+  "道": { py: "dào", kind: "char", senses: [{ en: "road; path; way", zh: "供人走的路" }, { en: "to say; to speak", zh: "说" }, { en: "principle; doctrine; the Way", zh: "道理，学说" }, { en: "measure word for orders, questions, courses of a meal", zh: "用于命令、题目、菜肴的量词" }] },
+  "视": { py: "shì", kind: "char", trad: "視", senses: [{ en: "to look at; to regard", zh: "看" }, { en: "to treat as; to regard as", zh: "看待" }, { en: "vision; sight (视力)", zh: "看的能力" }] },
+  "见": { py: "jiàn", kind: "char", trad: "見", senses: [{ en: "to see; to catch sight of", zh: "看到" }, { en: "to meet; to call on", zh: "会面" }, { en: "view; opinion (意见)", zh: "看法" }] },
+
+  // 不费吹灰之力 · 袖手旁观 · 事不关己 · 离弦的箭 · 拔腿狂奔
+  "费": { py: "fèi", kind: "char", trad: "費", senses: [{ en: "to spend; to expend; to cost", zh: "用掉，花掉" }, { en: "fee; expenses (学费, 车费)", zh: "花的钱" }] },
+  "吹": { py: "chuī", kind: "char", senses: [{ en: "to blow (with the mouth or of the wind)", zh: "合拢嘴唇用力出气；风流动" }, { en: "to boast; to brag (吹牛)", zh: "说大话" }, { en: "to fall through; to break up (colloquial)", zh: "事情失败或关系破裂（口语）" }] },
+  "灰": { py: "huī", kind: "char", senses: [{ en: "ash; dust", zh: "物体燃烧后剩下的粉末；尘土" }, { en: "grey", zh: "介于黑白之间的颜色" }, { en: "disheartened (灰心)", zh: "消沉，失望" }] },
+  "力": { py: "lì", kind: "char", senses: [{ en: "strength; power; force", zh: "力气，力量" }, { en: "to do one's utmost; vigorously", zh: "尽力，努力" }] },
+  "袖": { py: "xiù", kind: "char", senses: [{ en: "sleeve", zh: "衣服套在胳膊上的部分" }, { en: "to tuck into one's sleeve", zh: "藏在袖子里" }] },
+  "旁": { py: "páng", kind: "char", senses: [{ en: "side; beside", zh: "左右两侧" }, { en: "other; else (旁人)", zh: "别的" }] },
+  "观": { py: "guān", kind: "char", trad: "觀", senses: [{ en: "to watch; to observe", zh: "看" }, { en: "view; outlook (世界观)", zh: "对事物的看法" }] },
+  "事": { py: "shì", kind: "char", senses: [{ en: "matter; affair; thing", zh: "事情" }, { en: "job; work", zh: "职业，工作" }, { en: "accident; trouble (出事)", zh: "事故" }] },
+  "如": { py: "rú", kind: "char", senses: [{ en: "like; as; as if", zh: "好像" }, { en: "if; supposing (如果)", zh: "假使" }, { en: "to be as good as (usually negated: 不如)", zh: "比得上（多用于否定）" }] },
+  "己": { py: "jǐ", kind: "char", senses: [{ en: "oneself; self", zh: "自己" }] },
+  "离": { py: "lí", kind: "char", trad: "離", senses: [{ en: "to leave; to part from", zh: "分开，离开" }, { en: "away from; distant from", zh: "距离" }] },
+  "弦": { py: "xián", kind: "char", senses: [{ en: "bowstring", zh: "弓上发箭的绳" }, { en: "string (of a musical instrument)", zh: "乐器上发声的线" }] },
+  "箭": { py: "jiàn", kind: "char", senses: [{ en: "arrow", zh: "用弓发射的兵器" }] },
+  "拔": { py: "bá", kind: "char", senses: [{ en: "to pull out; to pull up", zh: "把东西抽出来" }, { en: "to lift; to raise (拔腿就跑)", zh: "抬起" }, { en: "to choose; to select (选拔)", zh: "挑选" }] },
+  "腿": { py: "tuǐ", kind: "char", senses: [{ en: "leg", zh: "人和动物用来行走的部分" }] },
+  "狂": { py: "kuáng", kind: "char", senses: [{ en: "mad; crazy", zh: "精神失常" }, { en: "wild; violent; unrestrained", zh: "猛烈，没有节制" }, { en: "arrogant; conceited", zh: "傲慢，自大" }] },
+  "奔": { py: "bēn", kind: "char", senses: [{ en: "to run fast; to rush", zh: "很快地跑" }, { en: "to flee", zh: "逃走" }] },
+
+  // 再熟悉不过 · 举手投足 · 立大功
+  "熟": { py: "shú", kind: "char", senses: [{ en: "cooked; done (of food)", zh: "食物加热到可以吃" }, { en: "ripe (of fruit or crops)", zh: "植物的果实成长到可以收获" }, { en: "familiar; well acquainted", zh: "常常接触，知道得清楚" }, { en: "skilled; practised (熟练)", zh: "因常做而有经验" }] },
+  "悉": { py: "xī", kind: "char", senses: [{ en: "to know; to learn of (formal)", zh: "知道（书面语）" }, { en: "entirely; all (悉数)", zh: "全，尽" }] },
+  "过": { py: "guò", kind: "char", trad: "過", senses: [{ en: "to cross; to pass (a place)", zh: "从一处到另一处" }, { en: "to spend (time); to live", zh: "度过日子" }, { en: "particle marking past experience (我去过)", zh: "助词，表示曾经经历" }, { en: "excessively; too (过度)", zh: "超出，太" }] },
+  "投": { py: "tóu", kind: "char", senses: [{ en: "to throw; to cast; to toss", zh: "扔，掷" }, { en: "to put in; to invest (投资)", zh: "放进去" }, { en: "to fit in with; to cater to (投合)", zh: "迎合，合得来" }] },
+};
+
+for (const [k, v] of Object.entries(SHOWCASE_CHARS)) {
+  if (!DICT[k]) DICT[k] = v;
+}
+
 for (const [k, v] of Object.entries(CHARS)) {
   if (!DICT[k]) DICT[k] = v;
 }

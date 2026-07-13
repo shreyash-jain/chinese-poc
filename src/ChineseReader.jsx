@@ -42,6 +42,25 @@ function toTrad(s) {
   return [...s].map((c) => SIMP_TO_TRAD[c] || c).join("");
 }
 
+// ── Responsive ──────────────────────────────────────────────────────────────
+// The app styles with inline objects, which cannot carry @media rules, so the
+// breakpoint is resolved in JS and the mobile style objects are merged in.
+function useMedia(query) {
+  const [matches, setMatches] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(query).matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = (e) => setMatches(e.matches);
+    setMatches(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [query]);
+  return matches;
+}
+
+const MOBILE_Q = "(max-width: 900px)";
+
 // ── Hanzi Writer CDN loader ─────────────────────────────────────────────────
 function useHanziWriter() {
   const [state, setState] = useState(() =>
@@ -126,15 +145,20 @@ export default function ChineseReader() {
   };
 
   const display = (s) => (script === "trad" ? toTrad(s) : s);
+  const isMobile = useMedia(MOBILE_Q);
 
-  // +72 reserves the gutter the side rail floats in, so it never overlaps text.
-  const shellPad = (active ? PANEL_W : 0) + 72;
+  // Desktop: the rail floats in a right-hand gutter, and the panel is a drawer
+  // that pushes the column left. Mobile: the rail is a bottom bar and the panel
+  // is a bottom sheet, so neither steals horizontal space.
+  const shellStyle = isMobile
+    ? { ...S.shell, paddingRight: 0, paddingBottom: 74 }
+    : { ...S.shell, paddingRight: (active ? PANEL_W : 0) + 72 };
 
   return (
-    <div style={{ ...S.shell, paddingRight: shellPad }}>
+    <div style={shellStyle}>
       <style>{CSS}</style>
 
-      <div style={S.main}>
+      <div style={{ ...S.main, ...(isMobile ? S.mainMobile : {}) }}>
         {/* ── Header ───────────────────────────────────────────────── */}
         <header style={S.header}>
           <div>
@@ -309,28 +333,36 @@ export default function ChineseReader() {
         </footer>
       </div>
 
-      <SideRail
-        offset={active ? PANEL_W + 14 : 14}
-        speaking={speaking}
-        onPlay={() => playAll(0)}
-        onStop={stopAll}
-        showPinyin={showPinyin} setShowPinyin={setShowPinyin}
-        wordColor={wordColor} setWordColor={setWordColor}
-        annotate={annotate} setAnnotate={setAnnotate}
-        voicePanel={voicePanel} setVoicePanel={setVoicePanel}
-      />
+      {/* On mobile the sheet covers the bottom, so the rail would sit under it. */}
+      {!(isMobile && active) && (
+        <SideRail
+          mobile={isMobile}
+          offset={active ? PANEL_W + 14 : 14}
+          speaking={speaking}
+          onPlay={() => playAll(0)}
+          onStop={stopAll}
+          showPinyin={showPinyin} setShowPinyin={setShowPinyin}
+          wordColor={wordColor} setWordColor={setWordColor}
+          annotate={annotate} setAnnotate={setAnnotate}
+          voicePanel={voicePanel} setVoicePanel={setVoicePanel}
+        />
+      )}
 
       {active && (
-        <WordPanel
-          word={active}
-          script={script}
-          gender={gender}
-          rate={rate}
-          speak={speak}
-          hwState={hwState}
-          onClose={() => setActive(null)}
-          onNavigate={setActive}
-        />
+        <>
+          {isMobile && <div style={S.scrim} onClick={() => setActive(null)} />}
+          <WordPanel
+            word={active}
+            mobile={isMobile}
+            script={script}
+            gender={gender}
+            rate={rate}
+            speak={speak}
+            hwState={hwState}
+            onClose={() => setActive(null)}
+            onNavigate={setActive}
+          />
+        </>
       )}
     </div>
   );
@@ -345,19 +377,24 @@ export default function ChineseReader() {
 // hovering opens a flyout with the Chinese name, the English name, and a
 // one-line explanation of what the toggle actually does.
 // ════════════════════════════════════════════════════════════════════════════
-function RailButton({ icon: Icon, caption, zh, en, help, helpEn, on, onClick }) {
+function RailButton({ icon: Icon, caption, zh, en, help, helpEn, on, onClick, mobile }) {
   const [hover, setHover] = useState(false);
 
+  // There is no hover on touch, and the flyout would be clipped by the bottom
+  // bar anyway — so on mobile we rely on the always-visible caption alone.
+  const showFlyout = hover && !mobile;
+
   return (
-    <div style={S.railItem}
+    <div style={{ ...S.railItem, ...(mobile ? S.railItemMobile : {}) }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}>
-      <button onClick={onClick} style={{ ...S.railBtn, ...(on ? S.railBtnOn : {}) }}>
-        <Icon size={17} />
+      <button onClick={onClick}
+        style={{ ...S.railBtn, ...(mobile ? S.railBtnMobile : {}), ...(on ? S.railBtnOn : {}) }}>
+        <Icon size={mobile ? 15 : 17} />
         <span style={S.railCaption}>{caption}</span>
       </button>
 
-      {hover && (
+      {showFlyout && (
         <div style={S.flyout}>
           <div style={S.flyoutTitle}>
             {zh}
@@ -377,15 +414,16 @@ function RailButton({ icon: Icon, caption, zh, en, help, helpEn, on, onClick }) 
 }
 
 function SideRail({
-  offset, speaking, onPlay, onStop,
+  mobile, offset, speaking, onPlay, onStop,
   showPinyin, setShowPinyin,
   wordColor, setWordColor,
   annotate, setAnnotate,
   voicePanel, setVoicePanel,
 }) {
   return (
-    <div style={{ ...S.rail, right: offset }}>
+    <div style={mobile ? S.railMobile : { ...S.rail, right: offset }}>
       <RailButton
+        mobile={mobile}
         icon={speaking ? Square : Volume2}
         caption={speaking ? "停止" : "朗读"}
         zh={speaking ? "停止朗读" : "朗读全文"}
@@ -396,6 +434,7 @@ function SideRail({
       />
 
       <RailButton
+        mobile={mobile}
         icon={Type}
         caption="拼音"
         zh="汉语拼音"
@@ -407,6 +446,7 @@ function SideRail({
       />
 
       <RailButton
+        mobile={mobile}
         icon={Palette}
         caption="分色"
         zh="词语分色"
@@ -418,6 +458,7 @@ function SideRail({
       />
 
       <RailButton
+        mobile={mobile}
         icon={Sparkles}
         caption="标注"
         zh="标注新加坡华语／成语"
@@ -428,9 +469,10 @@ function SideRail({
         onClick={() => setAnnotate((v) => !v)}
       />
 
-      <div style={S.railDivider} />
+      <div style={mobile ? S.railDividerMobile : S.railDivider} />
 
       <RailButton
+        mobile={mobile}
         icon={Settings2}
         caption="语音"
         zh="语音设置"
@@ -442,6 +484,7 @@ function SideRail({
       />
 
       <RailButton
+        mobile={mobile}
         icon={ArrowUp}
         caption="回顶"
         zh="回到顶部"
@@ -561,7 +604,7 @@ function Token({ token, colorIdx, wordColor, showPinyin, annotate, script, onCli
 // ════════════════════════════════════════════════════════════════════════════
 // WORD PANEL — 释义 (numbered senses, EN + ZH) · 例句 · 笔顺
 // ════════════════════════════════════════════════════════════════════════════
-function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavigate }) {
+function WordPanel({ word, mobile, script, gender, rate, speak, hwState, onClose, onNavigate }) {
   const [tab, setTab] = useState("def");
   const entry = DICT[word];
 
@@ -582,7 +625,9 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
   ];
 
   return (
-    <aside style={S.panel}>
+    <aside style={mobile ? S.sheet : S.panel}>
+      {mobile && <div style={S.grabber} />}
+
       {/* Head */}
       <div style={S.panelHead}>
         <button style={S.close} onClick={onClose}><X size={18} /></button>
@@ -665,11 +710,18 @@ function WordPanel({ word, script, gender, rate, speak, hwState, onClose, onNavi
                         disabled={!ce}
                         onClick={() => ce && onNavigate(c)}>
                         <span style={S.charGlyph}>{script === "trad" ? toTrad(c) : c}</span>
-                        <span style={S.charPy}>{ce?.py || "—"}</span>
-                        <span style={S.charDef}>
-                          {ce?.senses?.[0]?.en.split(";")[0] || ""}
-                        </span>
-                        {ce && <ChevronRight size={12} style={S.charArrow} />}
+                        {ce ? (
+                          <>
+                            <span style={S.charPy}>{ce.py}</span>
+                            <span style={S.charDef}>{ce.senses[0].en.split(";")[0]}</span>
+                            <ChevronRight size={12} style={S.charArrow} />
+                          </>
+                        ) : (
+                          // Honest fallback rather than a bare em-dash: this
+                          // character simply isn't in the demo lexicon. A
+                          // production build backed by CC-CEDICT has all of them.
+                          <span style={S.charMissing}>示范词库未收录<br />not in demo lexicon</span>
+                        )}
                       </button>
                     );
                   })}
@@ -941,9 +993,9 @@ const S = {
   // shorthand's auto-right and slams the column against the right edge.
   main: { maxWidth: 880, marginLeft: "auto", marginRight: "auto", padding: "30px clamp(16px,4vw,40px) 60px" },
 
-  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, borderBottom: `2px solid ${INK}`, paddingBottom: 16 },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", borderBottom: `2px solid ${INK}`, paddingBottom: 16 },
   kicker: { fontSize: 10.5, letterSpacing: "0.16em", color: ACCENT, fontWeight: 700, marginBottom: 6 },
-  h1: { fontFamily: SERIF, fontSize: 30, margin: 0, fontWeight: 700 },
+  h1: { fontFamily: SERIF, fontSize: "clamp(22px, 5.5vw, 30px)", margin: 0, fontWeight: 700 },
 
   segmented: { display: "flex", border: `1.5px solid ${INK}`, borderRadius: 3, overflow: "hidden", flexShrink: 0 },
   segBtn: { border: "none", background: "transparent", padding: "7px 13px", fontSize: 12.5, fontWeight: 600, color: INK, cursor: "pointer" },
@@ -952,8 +1004,8 @@ const S = {
   proof: { display: "flex", gap: 9, background: "#fff9ec", border: "1px solid #e8d7a8", borderRadius: 5, padding: "12px 14px", marginTop: 18, fontSize: 12.5, lineHeight: 1.6, color: "#5e5344" },
   proofRow: { display: "flex", gap: 8, alignItems: "baseline", marginTop: 7 },
 
-  passageTabs: { display: "flex", gap: 10, marginTop: 16 },
-  passageTab: { flex: 1, textAlign: "left", background: "#fffdf7", border: "1.5px solid #e0d8c6", borderRadius: 5, padding: "11px 13px", cursor: "pointer", transition: "border-color .15s" },
+  passageTabs: { display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" },
+  passageTab: { flex: "1 1 260px", textAlign: "left", background: "#fffdf7", border: "1.5px solid #e0d8c6", borderRadius: 5, padding: "11px 13px", cursor: "pointer", transition: "border-color .15s" },
   passageTabOn: { borderColor: INK, background: "#fff" },
   passageTabTitle: { fontFamily: SERIF, fontSize: 15, fontWeight: 700, color: INK },
   passageTabMeta: { fontSize: 11, color: "#8d8577", marginTop: 4 },
@@ -1011,11 +1063,11 @@ const S = {
 
   warn: { background: "#fbf0d8", border: "1px solid #e4c97a", color: "#7a5e1e", fontSize: 12, padding: "9px 13px", borderRadius: 4, marginTop: 12, lineHeight: 1.55 },
 
-  paper: { background: "#fffdf7", border: "1px solid #e4ddcd", borderRadius: 5, padding: "34px clamp(20px,4vw,38px)", marginTop: 16, boxShadow: "0 1px 2px rgba(0,0,0,0.03)" },
-  articleTitle: { fontFamily: SERIF, fontSize: 25, fontWeight: 700, margin: 0, lineHeight: 1.45 },
+  paper: { background: "#fffdf7", border: "1px solid #e4ddcd", borderRadius: 5, padding: "clamp(20px,4vw,34px) clamp(14px,4vw,38px)", marginTop: 16, boxShadow: "0 1px 2px rgba(0,0,0,0.03)" },
+  articleTitle: { fontFamily: SERIF, fontSize: "clamp(19px, 4.8vw, 25px)", fontWeight: 700, margin: 0, lineHeight: 1.45 },
   articleMeta: { fontSize: 11.5, color: "#9a9488", marginTop: 6, marginBottom: 26, paddingBottom: 14, borderBottom: "1px solid #efe8d8" },
 
-  para: { fontFamily: SERIF, fontSize: 20, lineHeight: 2.05, margin: "0 0 22px", letterSpacing: "0.01em" },
+  para: { fontFamily: SERIF, fontSize: "clamp(17px, 4.3vw, 20px)", lineHeight: 2.05, margin: "0 0 22px", letterSpacing: "0.01em" },
   paraRuby: { lineHeight: 2.9 },
 
   sentence: { borderRadius: 3, transition: "background .18s", padding: "1px 0" },
@@ -1032,6 +1084,28 @@ const S = {
 
   footer: { fontSize: 10.5, color: "#a8a296", marginTop: 26, textAlign: "center", lineHeight: 1.7 },
 
+  // ── mobile ──
+  mainMobile: { padding: "20px 16px 30px" },
+  railMobile: {
+    position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 35,
+    display: "flex", justifyContent: "space-around", alignItems: "center", gap: 2,
+    background: "#fffdf7", borderTop: "1px solid #e0d8c6",
+    padding: "7px 6px calc(7px + env(safe-area-inset-bottom))",
+    boxShadow: "0 -2px 12px rgba(0,0,0,0.05)",
+  },
+  railItemMobile: { flex: 1, justifyContent: "center" },
+  railBtnMobile: { width: "100%", maxWidth: 62, height: 44, borderRadius: 7, gap: 1 },
+  railDividerMobile: { width: 1, alignSelf: "stretch", background: "#e8e1d2", margin: "4px 2px" },
+
+  scrim: { position: "fixed", inset: 0, background: "rgba(31,27,22,0.4)", zIndex: 39 },
+  sheet: {
+    position: "fixed", left: 0, right: 0, bottom: 0, height: "86vh",
+    background: "#fffdf7", borderTopLeftRadius: 14, borderTopRightRadius: 14,
+    boxShadow: "0 -10px 40px rgba(0,0,0,0.25)",
+    display: "flex", flexDirection: "column", zIndex: 45,
+  },
+  grabber: { width: 38, height: 4, borderRadius: 2, background: "#ddd5c4", margin: "9px auto 0", flexShrink: 0 },
+
   // ── panel ──
   panel: { position: "fixed", top: 0, right: 0, width: PANEL_W, height: "100vh", background: "#fffdf7", borderLeft: "1px solid #e0d8c6", boxShadow: "-8px 0 28px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", zIndex: 40 },
   panelHead: { padding: "20px 22px 16px", borderBottom: "1px solid #ece5d5", position: "relative" },
@@ -1042,7 +1116,7 @@ const S = {
   tagIdiom: { background: "#f7e3e0", color: "#a53f36", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 10, whiteSpace: "nowrap" },
   tagPlain: { background: "#ece9e2", color: "#6b665c" },
 
-  panelWord: { fontFamily: SERIF, fontSize: 38, fontWeight: 700, marginTop: 10, lineHeight: 1.2 },
+  panelWord: { fontFamily: SERIF, fontSize: "clamp(30px, 8vw, 38px)", fontWeight: 700, marginTop: 10, lineHeight: 1.2 },
   panelPy: { fontSize: 17, fontWeight: 600, color: ACCENT, marginTop: 3 },
   voiceRow: { display: "flex", gap: 7, marginTop: 12 },
   voiceBtn: { display: "inline-flex", alignItems: "center", gap: 5, background: "#f2ece0", border: "1px solid #e0d8c6", color: INK, fontSize: 12, fontWeight: 600, padding: "6px 11px", borderRadius: 3, cursor: "pointer" },
@@ -1075,6 +1149,7 @@ const S = {
   charPy: { fontSize: 12, color: ACCENT, fontWeight: 600 },
   charDef: { fontSize: 10.5, color: "#8d8577", lineHeight: 1.3 },
   charArrow: { position: "absolute", top: 8, right: 6, color: "#c4bcaa" },
+  charMissing: { fontSize: 9.5, color: "#b8b0a2", lineHeight: 1.35, fontStyle: "italic" },
 
   // ── related words ──
   relDot: { display: "inline-block", width: 7, height: 7, borderRadius: "50%", marginRight: 6 },
@@ -1118,6 +1193,7 @@ const S = {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Inter:wght@400;600;700&display=swap');
 * { box-sizing: border-box; }
+html, body { overflow-x: hidden; }
 .spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
